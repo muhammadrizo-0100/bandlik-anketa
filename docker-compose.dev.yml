@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: BANDLIK-AGENTLIGI
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: bandlik_monitoring
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d bandlik_monitoring"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bandlik_dev_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: bandlik_backend_dev
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: bandlik_monitoring
+      JWT_SECRET: super_secret_jwt_key_bandlik_monitoring_2026
+      JWT_EXPIRATION: 1d
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: npm run start:dev
+    networks:
+      - bandlik_dev_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: bandlik_frontend_dev
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:3000/api/v1
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: npm run dev -- --host
+    networks:
+      - bandlik_dev_network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  bandlik_dev_network:
+    driver: bridge
