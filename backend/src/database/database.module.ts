@@ -32,7 +32,7 @@ import { SeedService } from './seed.service';
             EmploymentHistoryEntity,
           ],
           autoLoadEntities: true,
-          synchronize: true, // Jadvallarni avtomatik shakllantirish
+          synchronize: configService.get<boolean>('database.synchronize'),
           logging: configService.get<boolean>('database.logging'),
           ssl,
         };

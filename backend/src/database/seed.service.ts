@@ -33,6 +33,11 @@ export class SeedService implements OnModuleInit, OnApplicationBootstrap {
   }
 
   private async initSeed() {
+    if (
+      process.env.SEED_ENABLED === 'false' ||
+      process.env.NODE_ENV === 'production'
+    )
+      return;
     if (this.hasInitialized) return;
     this.hasInitialized = true;
 

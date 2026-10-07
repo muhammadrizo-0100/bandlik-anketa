@@ -10,6 +10,9 @@ export const databaseConfig = registerAs('database', () => ({
   ssl: process.env.DATABASE_URL || process.env.POSTGRES_SSL === 'true'
     ? { rejectUnauthorized: false }
     : false,
-  synchronize: true,
+  synchronize:
+    process.env.DB_SYNCHRONIZE === 'true' ||
+    (process.env.DB_SYNCHRONIZE === undefined &&
+      process.env.NODE_ENV !== 'production'),
   logging: process.env.NODE_ENV === 'development',
 }));

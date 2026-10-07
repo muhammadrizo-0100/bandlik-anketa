@@ -45,5 +45,6 @@ bandlik_baza_backup.sql
 *.dump
 backup/
 backups/
+.deploy.lock
 backend/scripts/
 

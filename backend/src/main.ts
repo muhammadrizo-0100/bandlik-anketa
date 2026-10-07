@@ -19,7 +19,7 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: true,
+    origin: corsOrigin.split(',').map((origin) => origin.trim()),
     credentials: true,
   });
 
