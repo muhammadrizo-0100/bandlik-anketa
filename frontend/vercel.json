@@ -1,8 +1,16 @@
 {
   "rewrites": [
     {
-      "source": "/api/v1/:path*",
-      "destination": "https://bandlik.technova-it.uz/api/v1/:path*"
+      "source": "/api/v1/districts/dropdown",
+      "destination": "https://bandlik.technova-it.uz/api/v1/districts/dropdown"
+    },
+    {
+      "source": "/api/v1/mahallas/dropdown",
+      "destination": "https://bandlik.technova-it.uz/api/v1/mahallas/dropdown"
+    },
+    {
+      "source": "/api/v1/surveys/public",
+      "destination": "https://bandlik.technova-it.uz/api/v1/surveys/public"
     },
     {
       "source": "/(.*)",

@@ -17,6 +17,15 @@ import { AreaFilterProvider } from './context/AreaFilterContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { DashboardSkeleton } from './components/ui/DashboardSkeleton';
 
+// Agar sayt Vercel yoki ommaviy anketa domenida ochilgan bo'lsa, faqat va faqat anketa formasi ishlaydi.
+// /login, /dashboard va boshqa admin sahifalarga kirish butunlay bloklanadi.
+const isSurveyOnly =
+  import.meta.env.VITE_SURVEY_ONLY === 'true' ||
+  (typeof window !== 'undefined' &&
+    (window.location.hostname.includes('vercel.app') ||
+      window.location.hostname.includes('anketa') ||
+      window.location.search.includes('survey_only=true')));
+
 // Himoyalangan marshrut (Protected Route)
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -42,6 +51,24 @@ const HomeRoute: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  // Ommaviy anketa rejimi (Vercel): Faqat ariza formasi mavjud, /login va boshqa marshrutlar avtomatik yopiladi
+  if (isSurveyOnly) {
+    return (
+      <BrowserRouter>
+        <ToastProvider>
+          <Routes>
+            <Route path="/" element={<PublicSurveyPage />} />
+            <Route path="/anketa" element={<PublicSurveyPage />} />
+            <Route path="/ariza" element={<PublicSurveyPage />} />
+            {/* Har qanday boshqa manzil (/login, /dashboard va h.k.) to'g'ridan-to'g'ri anketaga qaytariladi */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ToastProvider>
+      </BrowserRouter>
+    );
+  }
+
+  // To'liq monitoring tizimi (Asosiy tizim va xodimlar uchun)
   return (
     <BrowserRouter>
       <ToastProvider>
