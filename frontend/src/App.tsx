@@ -32,6 +32,15 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Asosiy sahifa yo'naltiruvchisi (Tizimga kirmaganlar to'g'ridan-to'g'ri /anketa ga tushadi)
+const HomeRoute: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/anketa" replace />;
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -40,10 +49,11 @@ export const App: React.FC = () => {
           <AreaFilterProvider>
             <SidebarProvider>
               <Routes>
-              {/* Ochiq marshrutlar (Aholi va Xodimlar uchun) */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/anketa" element={<PublicSurveyPage />} />
-              <Route path="/ariza" element={<PublicSurveyPage />} />
+                {/* Ochiq marshrutlar (Aholi va Xodimlar uchun) */}
+                <Route path="/" element={<HomeRoute />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/anketa" element={<PublicSurveyPage />} />
+                <Route path="/ariza" element={<PublicSurveyPage />} />
 
           {/* Himoyalangan marshrutlar */}
           <Route
