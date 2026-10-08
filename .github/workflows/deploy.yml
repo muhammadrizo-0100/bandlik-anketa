@@ -50,17 +50,22 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Configure project deployment key
+        id: check_keys
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          test -n "$VPS_HOST"
-          test -n "$VPS_SSH_KEY"
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_SSH_KEY" ]; then
+            echo "VPS secrets not configured. Skipping VPS deployment."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           printf '[%s]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKOijH6B/fXduCTUuumy/vapPQ1t7kFhzEi4zhy8PyVK\n' "$VPS_HOST" > ~/.ssh/known_hosts
       - name: Deploy main
+        if: steps.check_keys.outputs.skip != 'true'
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
         run: ssh -o BatchMode=yes -p 2222 deploy@"$VPS_HOST" bandlik-production
