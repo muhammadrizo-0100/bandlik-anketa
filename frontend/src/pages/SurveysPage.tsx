@@ -25,6 +25,7 @@ export const SurveysPage: React.FC = () => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -38,7 +39,7 @@ export const SurveysPage: React.FC = () => {
         mahallaId: selectedMahallaId || undefined,
         status: statusFilter === 'ALL' ? undefined : (statusFilter as any),
         page,
-        limit: 10,
+        limit: pageSize,
       });
       setSurveys(res.items);
       setTotal(res.total);
@@ -54,7 +55,7 @@ export const SurveysPage: React.FC = () => {
       fetchSurveys();
     }, 250);
     return () => clearTimeout(timer);
-  }, [search, selectedDistrictId, selectedMahallaId, statusFilter, page]);
+  }, [search, selectedDistrictId, selectedMahallaId, statusFilter, page, pageSize]);
 
   const handleSearch = (q: string) => {
     setSearch(q);
@@ -302,12 +303,36 @@ export const SurveysPage: React.FC = () => {
 
           {/* Sahifalash (Pagination) */}
           {!loading && surveys.length > 0 && (
-            <Pagination
-              currentPage={page}
-              totalItems={total}
-              pageSize={10}
-              onPageChange={(p) => setPage(p)}
-            />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white border-t border-slate-100 px-4 py-2 gap-3">
+              <div className="flex items-center space-x-1 bg-slate-50 p-1 rounded-xl border border-slate-200 w-fit">
+                <span className="text-[11px] font-semibold text-slate-400 px-1.5">Qator:</span>
+                {[10, 20, 50, 100].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => {
+                      setPageSize(size);
+                      setPage(1);
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      pageSize === size
+                        ? 'bg-[#163D5C] text-white shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+
+              <Pagination
+                currentPage={page}
+                totalItems={total}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                className="border-t-0 p-0"
+              />
+            </div>
           )}
         </div>
       </div>

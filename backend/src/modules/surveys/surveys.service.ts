@@ -471,10 +471,6 @@ export class SurveysService {
       } else {
         queryBuilder.andWhere('s.status = :status', { status: filterDto.status });
       }
-    } else {
-      queryBuilder.andWhere('s.status != :rejectedStatus', {
-        rejectedStatus: SurveyStatus.REJECTED,
-      });
     }
 
     if (filterDto.category) {

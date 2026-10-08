@@ -65,7 +65,21 @@ export const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('ALL');
   const [loading, setLoading] = useState<boolean>(true);
   const [recentSurveysPage, setRecentSurveysPage] = useState<number>(1);
+  const RECENT_SURVEYS_PAGE_SIZE = 10;
   const [error, setError] = useState<string | null>(null);
+
+  // Ekran o'lchamini kuzatish (Mobilda grafik toifalarini ixcham ko'rsatish)
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Vaqt filteri holati (Time Filter state)
   const [timePreset, setTimePreset] = useState<string>('THIS_MONTH');
@@ -433,8 +447,8 @@ export const DashboardPage: React.FC = () => {
       },
       {
         key: 'SELF_EMPLOYED',
-        name: 'Oʻzini band',
-        shortName: 'Oʻzini band',
+        name: 'Oʻzini band qilgan',
+        shortName: 'Oʻzini band qilgan',
         count: kpi?.selfEmployed?.count || 0,
         percentage: kpi?.selfEmployed?.percentage || 0,
         color: '#0284C7',
@@ -667,33 +681,52 @@ export const DashboardPage: React.FC = () => {
   // Grafik ustuni ostida toifa nomi va ulushini chiqarish
   const CustomCategoryAxisTick = (props: any) => {
     const { x, y, payload } = props;
-    const item = categoryBarData[payload.index];
+    const item = categoryBarData[payload?.index] || categoryBarData.find((c) => c.name === payload?.value);
     if (!item) return null;
+
+    // 1-USUL: Mobilda (<640px) ustun ostida faqat rangli indikator (doiracha) + foiz chiqariladi
+    // Bu orqali 6 ta ustun nomlari bir-biriga minmasdan, mutlaqo toza va tushunarli bo'ladi
+    if (isMobileScreen) {
+      return (
+        <g transform={`translate(${x},${y})`}>
+          {/* Rangli nishon doirachasi */}
+          <circle cx={0} cy={7} r={4} fill={item.color} />
+          {/* Foiz ko'rsatkichi */}
+          <text
+            x={0}
+            y={0}
+            dy={22}
+            textAnchor="middle"
+            fill={item.color}
+            fontSize={10.5}
+            fontWeight={800}
+          >
+            {item.percentage}%
+          </text>
+        </g>
+      );
+    }
+
+    const isSelfEmployed = item.key === 'SELF_EMPLOYED';
 
     return (
       <g transform={`translate(${x},${y})`}>
-        <text
-          x={0}
-          y={0}
-          dy={12}
-          textAnchor="middle"
-          fill="#334155"
-          fontSize={11.5}
-          fontWeight={700}
-        >
-          {item.shortName || item.name}
-        </text>
-        <text
-          x={0}
-          y={0}
-          dy={26}
-          textAnchor="middle"
-          fill={item.color}
-          fontSize={10}
-          fontWeight={800}
-        >
-          {item.percentage}%
-        </text>
+        {isSelfEmployed ? (
+          <text textAnchor="middle" fill="#334155" fontSize={11} fontWeight={700}>
+            <tspan x={0} dy={12}>Oʻzini band</tspan>
+            <tspan x={0} dy={13}>qilgan</tspan>
+            <tspan x={0} dy={15} fill={item.color} fontWeight={800} fontSize={10.5}>
+              {item.percentage}%
+            </tspan>
+          </text>
+        ) : (
+          <text textAnchor="middle" fill="#334155" fontSize={11.5} fontWeight={700}>
+            <tspan x={0} dy={14}>{item.shortName || item.name}</tspan>
+            <tspan x={0} dy={15} fill={item.color} fontWeight={800} fontSize={10.5}>
+              {item.percentage}%
+            </tspan>
+          </text>
+        )}
       </g>
     );
   };
@@ -1482,7 +1515,7 @@ export const DashboardPage: React.FC = () => {
               </span>
               <span className="flex items-center space-x-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
-                <span className="text-slate-700 font-semibold">Oʻzini band</span>
+                <span className="text-slate-700 font-semibold">Oʻzini band qilgan</span>
               </span>
               <span className="flex items-center space-x-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -1513,8 +1546,13 @@ export const DashboardPage: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={categoryBarData}
-                    margin={{ top: 25, right: 12, left: -15, bottom: 25 }}
-                    barCategoryGap="16%"
+                    margin={{
+                      top: 25,
+                      right: isMobileScreen ? 8 : 12,
+                      left: isMobileScreen ? -25 : -15,
+                      bottom: isMobileScreen ? 12 : 25,
+                    }}
+                    barCategoryGap={isMobileScreen ? '8%' : '15%'}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                     <XAxis
@@ -1523,7 +1561,7 @@ export const DashboardPage: React.FC = () => {
                       tickLine={false}
                       tick={<CustomCategoryAxisTick />}
                       interval={0}
-                      height={42}
+                      height={isMobileScreen ? 34 : 48}
                     />
                     <YAxis
                       axisLine={false}
@@ -1538,7 +1576,7 @@ export const DashboardPage: React.FC = () => {
                     <Bar
                       dataKey="count"
                       radius={[8, 8, 0, 0]}
-                      barSize={38}
+                      barSize={isMobileScreen ? 26 : 42}
                       cursor="pointer"
                       onClick={(entry: any) => {
                         if (entry && entry.key) {
@@ -1553,7 +1591,8 @@ export const DashboardPage: React.FC = () => {
                       <LabelList
                         dataKey="count"
                         position="top"
-                        formatter={(val: number) => (val > 0 ? val.toLocaleString() : '0')}
+                        offset={6}
+                        formatter={(val: number) => (val > 0 ? val.toLocaleString() : '')}
                         style={{ fill: '#1E293B', fontSize: 11.5, fontWeight: 800 }}
                       />
                     </Bar>

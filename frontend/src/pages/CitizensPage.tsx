@@ -6,7 +6,7 @@ import { Citizen, Mahalla, EmploymentCategory } from '../types/monitoring.types'
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { formatMahallaName } from '../utils/formatters';
-import { isValidYouthAge } from '../utils/validators';
+import { isValidYouthAge, calculateAge, formatUzPhone } from '../utils/validators';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { Pagination } from '../components/ui/Pagination';
 import { TableSkeleton } from '../components/ui/TableSkeleton';
@@ -30,6 +30,8 @@ import {
   Loader2,
   CheckCircle2,
   Building2,
+  Copy,
+  FileText,
 } from 'lucide-react';
 export const CitizensPage: React.FC = () => {
   const { user, isSuperAdmin, isDistrictAdmin, isMahallaOperator, isDataReviewer } = useAuth();
@@ -43,6 +45,7 @@ export const CitizensPage: React.FC = () => {
   const [citizens, setCitizens] = useState<Citizen[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [mahallas, setMahallas] = useState<Mahalla[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -83,6 +86,7 @@ export const CitizensPage: React.FC = () => {
   // Modal State (Batafsil ma'lumot va bandlik tarixi)
   const [selectedCitizen, setSelectedCitizen] = useState<Citizen | null>(null);
   const [modalLoading, setModalLoading] = useState<boolean>(false);
+  const [copiedPinfl, setCopiedPinfl] = useState<boolean>(false);
 
   // Edit Modal State
   const [editingCitizen, setEditingCitizen] = useState<Citizen | null>(null);
@@ -115,7 +119,7 @@ export const CitizensPage: React.FC = () => {
         mahallaId: currentMahallaId || undefined,
         category: (selectedCategory as EmploymentCategory) || undefined,
         page,
-        limit: 10,
+        limit: pageSize,
       });
       setCitizens(res.items);
       setTotal(res.total);
@@ -152,7 +156,7 @@ export const CitizensPage: React.FC = () => {
       fetchCitizens();
     }, 250);
     return () => clearTimeout(timer);
-  }, [page, search, currentDistrictId, currentMahallaId, selectedCategory]);
+  }, [page, pageSize, search, currentDistrictId, currentMahallaId, selectedCategory]);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
@@ -292,6 +296,34 @@ export const CitizensPage: React.FC = () => {
         return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">Boshqa</span>;
       default:
         return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-50 text-gray-400">Noma'lum</span>;
+    }
+  };
+
+  const getSurveyMethodText = (method?: string) => {
+    switch (method) {
+      case 'HOME_VISIT':
+        return 'Uyma-uy yurib oʻrganish';
+      case 'PHONE':
+        return 'Telefon orqali soʻrov';
+      case 'IN_PERSON':
+        return 'Muassasaga kelganda (Qabulda)';
+      default:
+        return method || 'Aniqlanmagan';
+    }
+  };
+
+  const getNoWishReasonText = (reason?: string) => {
+    switch (reason) {
+      case 'CHILD_CARE':
+        return 'Bola parvarishida (tarbiyasida)';
+      case 'HOUSEWIFE':
+        return 'Uy bekasi';
+      case 'WEALTHY_FAMILY':
+        return 'Oʻziga toʻq oila farzandi';
+      case 'APPLICANT':
+        return 'Abituriyent (Oʻqishga tayyorlanmoqda)';
+      default:
+        return reason || 'Sabab koʻrsatilmagan';
     }
   };
 
@@ -510,12 +542,36 @@ export const CitizensPage: React.FC = () => {
 
           {/* Sahifalash (Pagination) */}
           {!loading && citizens.length > 0 && (
-            <Pagination
-              currentPage={page}
-              totalItems={total}
-              pageSize={10}
-              onPageChange={(p) => setPage(p)}
-            />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white border-t border-slate-100 px-4 py-2 gap-3">
+              <div className="flex items-center space-x-1 bg-slate-50 p-1 rounded-xl border border-slate-200 w-fit">
+                <span className="text-[11px] font-semibold text-slate-400 px-1.5">Qator:</span>
+                {[10, 20, 50, 100].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => {
+                      setPageSize(size);
+                      setPage(1);
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      pageSize === size
+                        ? 'bg-[#163D5C] text-white shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+
+              <Pagination
+                currentPage={page}
+                totalItems={total}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                className="border-t-0 p-0"
+              />
+            </div>
           )}
         </div>
       </div>
@@ -523,97 +579,283 @@ export const CitizensPage: React.FC = () => {
       {/* Citizen Details & History Modal */}
       {selectedCitizen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">
-                  {selectedCitizen.fullName}
-                </h3>
-                <p className="text-xs text-gray-500">JSHSHIR: {selectedCitizen.pinfl}</p>
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100 gap-3">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                    {selectedCitizen.fullName}
+                  </h3>
+                  <div>{getCategoryBadge(selectedCitizen.currentCategory)}</div>
+                </div>
+
+                {/* JSHSHIR — Rasmiy Davlat Formati (Ko'zga yaqqol tashlanadigan qilib) */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#163D5C] text-white rounded-xl shadow-xs">
+                    <span className="text-[11px] font-bold text-slate-300">JSHSHIR:</span>
+                    <span className="font-mono text-xs font-black tracking-widest select-all">
+                      {selectedCitizen.pinfl}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedCitizen.pinfl);
+                        setCopiedPinfl(true);
+                        toast.success('JSHSHIR nusxalandi');
+                        setTimeout(() => setCopiedPinfl(false), 2000);
+                      }}
+                      className="ml-1 text-slate-300 hover:text-white p-0.5 rounded transition cursor-pointer"
+                      title="JSHSHIRni nusxalash"
+                    >
+                      {copiedPinfl ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Tug'ilgan sana va Yoshi */}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{calculateAge(selectedCitizen.birthDate) || '-'} yosh</span>
+                    <span className="text-slate-300">•</span>
+                    <span>{new Date(selectedCitizen.birthDate).toLocaleDateString('uz-UZ')}</span>
+                  </span>
+                </div>
               </div>
+
               <button
+                type="button"
                 onClick={() => setSelectedCitizen(null)}
-                className="p-2 text-gray-400 hover:text-gray-700 rounded-lg"
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Asosiy ma'lumotlar bloki */}
-            <div className="grid grid-cols-2 gap-3 text-xs mb-6 bg-slate-50 p-4 rounded-xl border border-gray-200">
-              <div>
-                <span className="text-gray-400 block mb-0.5">Tug'ilgan sana:</span>
-                <span className="font-semibold text-gray-800">
-                  {new Date(selectedCitizen.birthDate).toLocaleDateString('uz-UZ')}
-                </span>
+            {/* I. Shaxsiy va Yashash ma'lumotlari */}
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Users className="w-4 h-4 text-[#163D5C]" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Shaxsiy va Hududiy Maʻlumotlar
+                </h4>
               </div>
-              <div>
-                <span className="text-gray-400 block mb-0.5">Mahalla:</span>
-                <span className="font-semibold text-gray-800">
-                  {formatMahallaName(selectedCitizen.mahalla?.name)}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block mb-0.5">Yashash manzili:</span>
-                <span className="font-semibold text-gray-800">
-                  {selectedCitizen.address}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block mb-0.5">Ta'limi:</span>
-                <span className="font-semibold text-gray-800">
-                  {selectedCitizen.education}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block mb-0.5">Telefon:</span>
-                <span className="font-semibold text-gray-800">
-                  {selectedCitizen.phone || 'Kiritilmagan'}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block mb-0.5">Joriy toifa:</span>
-                <div>{getCategoryBadge(selectedCitizen.currentCategory)}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50/80 p-4 rounded-2xl border border-slate-200">
+                <div>
+                  <span className="text-slate-400 block mb-0.5 font-medium">Mahalla va Tuman:</span>
+                  <span className="font-bold text-slate-800">
+                    {formatMahallaName(selectedCitizen.mahalla?.name)}
+                    {(selectedCitizen as any).district?.name ? `, ${(selectedCitizen as any).district.name}` : ''}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5 font-medium">Yashash manzili:</span>
+                  <span className="font-bold text-slate-800">
+                    {selectedCitizen.address || '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5 font-medium">Telefon raqami:</span>
+                  <span className="font-bold text-slate-800 font-mono">
+                    {selectedCitizen.phone ? formatUzPhone(selectedCitizen.phone) : 'Kiritilmagan'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5 font-medium">Ota-onasi telefoni:</span>
+                  <span className="font-bold text-slate-800 font-mono">
+                    {selectedCitizen.parentPhone ? formatUzPhone(selectedCitizen.parentPhone) : 'Kiritilmagan'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5 font-medium">Taʻlim muassasasi:</span>
+                  <span className="font-bold text-slate-800">
+                    {selectedCitizen.education || '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5 font-medium">Mutaxassisligi:</span>
+                  <span className="font-bold text-slate-800">
+                    {selectedCitizen.specialty || '-'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Bandlik Tarixi (Employment History Log) */}
+            {/* II. Bandlik holati va Anketadagi batafsil izohlar / qaydlar */}
+            {(() => {
+              const latestSurvey = selectedCitizen.surveys && selectedCitizen.surveys.length > 0
+                ? selectedCitizen.surveys[0]
+                : null;
+
+              const workplace = latestSurvey?.officialWorkplace;
+              const selfActivity = latestSurvey?.selfEmployedActivity;
+              const isRegistered = latestSurvey?.selfEmployedRegistered;
+              const unoffActivity = latestSurvey?.unofficialActivityType;
+              const migrantPlace = latestSurvey?.migrantCountry;
+              const migrantTime = latestSurvey?.migrantDuration;
+              const noWish = latestSurvey?.noWishReason;
+              const unempDirections = latestSurvey?.unemployedDirections;
+
+              // Anketadagi izoh / xulosa (eng muhim maydon)
+              const noteText =
+                latestSurvey?.unemployedAdditionalNote ||
+                latestSurvey?.otherReasonNote ||
+                latestSurvey?.reviewerNote ||
+                selectedCitizen.currentStatusDetail;
+
+              return (
+                <div className="space-y-2.5">
+                  <div className="flex items-center space-x-2">
+                    <Briefcase className="w-4 h-4 text-[#163D5C]" />
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Bandlik Holati va Anketadagi Izohlar
+                    </h4>
+                  </div>
+
+                  <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200 text-xs space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-slate-500 block mb-1 font-medium">Joriy toifa:</span>
+                        <div>{getCategoryBadge(selectedCitizen.currentCategory)}</div>
+                      </div>
+
+                      {/* Toifaga xos batafsil ko'rsatkichlar */}
+                      {selectedCitizen.currentCategory === 'OFFICIALLY_EMPLOYED' && (
+                        <div>
+                          <span className="text-slate-500 block mb-0.5 font-medium">Ish joyi va lavozimi:</span>
+                          <span className="font-bold text-slate-900">
+                            {workplace || selectedCitizen.currentStatusDetail || '-'}
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedCitizen.currentCategory === 'SELF_EMPLOYED' && (
+                        <div>
+                          <span className="text-slate-500 block mb-0.5 font-medium">Faoliyat yoʻnalishi:</span>
+                          <span className="font-bold text-slate-900 block">
+                            {selfActivity || selectedCitizen.currentStatusDetail || '-'}
+                          </span>
+                          <span className="text-[11px] text-slate-500 mt-0.5 block">
+                            Soliq roʻyxati:{' '}
+                            <b className={isRegistered ? 'text-emerald-700' : 'text-amber-700'}>
+                              {isRegistered ? 'Ha, roʻyxatdan oʻtgan' : 'Roʻyxatdan oʻtmagan'}
+                            </b>
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedCitizen.currentCategory === 'UNOFFICIALLY_EMPLOYED' && (
+                        <div>
+                          <span className="text-slate-500 block mb-0.5 font-medium">Norasmiy faoliyat turi:</span>
+                          <span className="font-bold text-slate-900">
+                            {unoffActivity || selectedCitizen.currentStatusDetail || '-'}
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedCitizen.currentCategory === 'MIGRANT' && (
+                        <div>
+                          <span className="text-slate-500 block mb-0.5 font-medium">Ketgan davlati va muddati:</span>
+                          <span className="font-bold text-slate-900">
+                            {migrantPlace || '-'} {migrantTime ? `(${migrantTime})` : ''}
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedCitizen.currentCategory === 'NO_WISH_TO_WORK' && (
+                        <div>
+                          <span className="text-slate-500 block mb-0.5 font-medium">Ishlamaslik sababi:</span>
+                          <span className="font-bold text-slate-900">
+                            {getNoWishReasonText(noWish) || selectedCitizen.currentStatusDetail || '-'}
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedCitizen.currentCategory === 'UNEMPLOYED' && unempDirections && unempDirections.length > 0 && (
+                        <div>
+                          <span className="text-slate-500 block mb-0.5 font-medium">Talab qilingan yoʻnalishlar:</span>
+                          <span className="font-bold text-slate-900">
+                            {unempDirections.join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Izoh qismi — Alohida toza, rasmiy oq karta */}
+                    {noteText && (
+                      <div className="pt-2.5 border-t border-slate-200">
+                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">
+                          Anketada koʻrsatilgan izoh / Xulosa:
+                        </span>
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 text-xs text-slate-800 font-semibold leading-relaxed shadow-2xs">
+                          {noteText}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Xatlov o'tkazilganligi tafsilotlari */}
+                    {latestSurvey && (
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-500">
+                        <span>
+                          Oʻrganish shakli: <b className="text-slate-700">{getSurveyMethodText(latestSurvey.surveyMethod)}</b>
+                        </span>
+                        <span>
+                          Sana: <b className="text-slate-700">{new Date(latestSurvey.surveyDate || latestSurvey.createdAt).toLocaleDateString('uz-UZ')}</b>
+                        </span>
+                        {latestSurvey.operator && (
+                          <span>
+                            Masʻul xodim: <b className="text-slate-700">{latestSurvey.operator.fullName}</b>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* III. Bandlik Tarixi (Employment History Log) */}
             <div>
-              <div className="flex items-center space-x-2 mb-3">
-                <History className="w-4 h-4 text-blue-600" />
-                <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                  Bandlik Tarixi (O'zgarishlar jurnali)
+              <div className="flex items-center space-x-2 mb-2.5">
+                <History className="w-4 h-4 text-[#163D5C]" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Bandlik Tarixi (Oʻzgarishlar jurnali)
                 </h4>
               </div>
 
               {selectedCitizen.employmentHistory && selectedCitizen.employmentHistory.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {selectedCitizen.employmentHistory.map((h, i) => (
                     <div
                       key={h.id || i}
-                      className="p-3.5 rounded-xl border border-gray-200 bg-white text-xs space-y-1 shadow-sm"
+                      className="p-3.5 rounded-xl border border-slate-200 bg-white text-xs space-y-1.5 shadow-2xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-gray-800">
-                          {h.newCategory}
-                        </span>
-                        <span className="text-[10px] text-gray-400">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 font-medium">Toifa:</span>
+                          <div>{getCategoryBadge(h.newCategory)}</div>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-medium">
                           {new Date(h.createdAt).toLocaleString('uz-UZ')}
                         </span>
                       </div>
-                      <p className="text-gray-600 text-[11px]">
-                        <span className="font-semibold">Sabab / Xulosa:</span> {h.changeReason}
+                      <p className="text-slate-700 text-xs">
+                        <span className="font-semibold text-slate-500">Sabab / Xulosa:</span>{' '}
+                        <span className="font-medium text-slate-800">{h.changeReason}</span>
                       </p>
                       {h.changedBy && (
-                        <p className="text-gray-400 text-[10px]">
-                          O'zgartirgan xodim: {h.changedBy.fullName} ({typeof (h.changedBy as any).role === 'object' ? (h.changedBy as any).role?.code : h.changedBy.roleCode || (h.changedBy as any).role || ''})
+                        <p className="text-slate-400 text-[10px]">
+                          Masʻul xodim: {h.changedBy.fullName}
                         </p>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 text-center py-4">
+                <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl border border-slate-200">
                   Tarix yozuvlari mavjud emas
                 </p>
               )}
@@ -621,7 +863,7 @@ export const CitizensPage: React.FC = () => {
 
             {/* Modal Actions */}
             {canEditOrDelete && (
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 mt-6">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 mt-5">
                 <button
                   type="button"
                   onClick={() => {

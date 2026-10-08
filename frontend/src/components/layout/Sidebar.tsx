@@ -222,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   return (
-    <aside className="w-full h-full bg-white text-slate-700 flex flex-col justify-between border-r border-slate-200/80 flex-shrink-0 select-none overflow-y-auto overflow-x-hidden relative transition-all duration-300">
+    <aside className="w-full h-full bg-white text-slate-700 flex flex-col justify-between border-r border-slate-200/80 flex-shrink-0 select-none overflow-y-auto overflow-x-hidden no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden relative transition-all duration-300">
       {/* Yuqori qism: Logo, Hudud tanlagich va Menyu */}
       <div>
         {/* 1. Brand Logo */}
