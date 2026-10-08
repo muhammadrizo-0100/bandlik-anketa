@@ -469,10 +469,7 @@ export class DashboardService {
       qb.andWhere('s.surveyDate <= :endDate', { endDate: scope.endDate });
     }
 
-    return qb
-      .orderBy('s.createdAt', 'DESC')
-      .limit(50)
-      .getMany();
+    return qb.orderBy('s.createdAt', 'DESC').limit(50).getMany();
   }
 
   /**

@@ -371,7 +371,7 @@ export class SeedService implements OnModuleInit, OnApplicationBootstrap {
 
     // 3. Data Reviewer (login: reviewer / parol: reviewer123)
     if (reviewerRole) {
-      let reviewer = await this.userRepository.findOne({
+      const reviewer = await this.userRepository.findOne({
         where: [{ username: 'reviewer' }, { email: 'reviewer@bandlik.uz' }],
       });
       const revPasswordHash = await bcrypt.hash('reviewer123', salt);
